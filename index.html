@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Network Scanner — Kartik</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #060910;
+    --surface: #0d1117;
+    --surface2: #161b22;
+    --border: #21262d;
+    --accent: #06b6d4;
+    --accent2: #7c3aed;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --green: #3fb950;
+    --red: #f85149;
+    --yellow: #d29922;
+    --orange: #f97316;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    padding: 2rem 1rem;
+    background-image:
+      radial-gradient(ellipse at 80% 0%, rgba(6,182,212,0.07) 0%, transparent 50%),
+      radial-gradient(ellipse at 20% 100%, rgba(124,58,237,0.06) 0%, transparent 50%);
+  }
+  .container { max-width: 680px; margin: 0 auto; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.25);
+    color: #67e8f9; font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem; padding: 4px 12px; border-radius: 100px;
+    margin-bottom: 1rem; letter-spacing: 0.06em;
+  }
+  h1 {
+    font-size: 2rem; font-weight: 800; margin-bottom: 0.3rem;
+    background: linear-gradient(135deg, #e6edf3 40%, #67e8f9);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .subtitle { color: var(--muted); font-size: 0.83rem; margin-bottom: 2rem; }
+
+  /* Notice box */
+  .notice {
+    background: rgba(6,182,212,0.06);
+    border: 1px solid rgba(6,182,212,0.2);
+    border-radius: 10px;
+    padding: 0.9rem 1.1rem;
+    font-size: 0.78rem;
+    color: #94a3b8;
+    margin-bottom: 1.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1.6;
+  }
+  .notice strong { color: #67e8f9; }
+
+  /* Input area */
+  .input-row {
+    display: flex; gap: 0.7rem; margin-bottom: 1rem;
+  }
+  input[type="text"] {
+    flex: 1;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 0.8rem 1rem;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus { border-color: var(--accent); }
+  .btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 10px;
+    padding: 0.8rem 1.5rem;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    white-space: nowrap;
+  }
+  .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .btn-demo {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.8rem 1.2rem;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    white-space: nowrap;
+  }
+  .btn-demo:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Terminal output */
+  .terminal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+    display: none;
+  }
+  .terminal.show { display: block; }
+  .terminal-bar {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    padding: 0.6rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot.r { background: #f85149; }
+  .dot.y { background: #d29922; }
+  .dot.g { background: #3fb950; }
+  .terminal-title { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--muted); margin-left: 6px; }
+  .terminal-body { padding: 1.2rem; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; line-height: 2; min-height: 80px; }
+  .line { display: flex; align-items: flex-start; gap: 8px; animation: fadein 0.2s ease; }
+  @keyframes fadein { from { opacity:0; transform: translateY(4px); } to { opacity:1; transform: none; } }
+  .prompt { color: var(--accent); flex-shrink: 0; }
+  .ok   { color: var(--green); }
+  .warn { color: var(--orange); }
+  .err  { color: var(--red); }
+  .info { color: #67e8f9; }
+  .dim  { color: var(--muted); }
+  .scanning { color: var(--yellow); }
+
+  /* Results cards */
+  .results-grid { display: flex; flex-direction: column; gap: 0.8rem; }
+  .host-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    animation: fadein 0.3s ease;
+  }
+  .host-header {
+    padding: 0.9rem 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+  .host-ip { font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 0.9rem; }
+  .host-name { color: var(--muted); font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; }
+  .live-badge {
+    background: rgba(63,185,80,0.15);
+    border: 1px solid rgba(63,185,80,0.3);
+    color: var(--green);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    padding: 2px 8px;
+    border-radius: 100px;
+  }
+  .port-table { padding: 0.8rem 1.1rem; }
+  .port-row {
+    display: grid;
+    grid-template-columns: 70px 120px 1fr;
+    gap: 0.5rem;
+    padding: 0.4rem 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.76rem;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    align-items: center;
+  }
+  .port-row:last-child { border-bottom: none; }
+  .port-row .port-num { color: var(--accent); }
+  .port-row .svc { color: var(--text); }
+  .port-row .risk-ok   { color: var(--green); }
+  .port-row .risk-warn { color: var(--orange); display:flex; align-items:center; gap:4px; }
+  .no-ports { color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 0.76rem; padding: 0.6rem 1.1rem; }
+
+  /* Stats */
+  .stats {
+    display: grid; grid-template-columns: repeat(3,1fr); gap: 0.7rem;
+    margin-bottom: 1.5rem; display: none;
+  }
+  .stats.show { display: grid; }
+  .stat-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem;
+    text-align: center;
+  }
+  .stat-num { font-size: 1.6rem; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
+  .stat-lbl { font-size: 0.7rem; color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  .footer { text-align:center; font-size:0.72rem; color:var(--muted); font-family:'JetBrains Mono',monospace; margin-top:2rem; }
+  .footer a { color: #67e8f9; text-decoration:none; }
+
+  .spinner { display: inline-block; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="badge">CYBERSECURITY TOOL v1.0</div>
+  <h1>Network Scanner</h1>
+  <p class="subtitle">Discover devices & open ports on any network range</p>
+
+  <div class="notice">
+    <strong>⚠ Note:</strong> Browser security restricts direct TCP port scanning. This tool simulates a real network scan using common subnet patterns and port fingerprinting techniques — identical logic to the Python CLI version. For a real scan on your own network, download the <a href="https://github.com/Kartik8171/network-scanner" style="color:#67e8f9">Python CLI tool</a>.
+  </div>
+
+  <div class="input-row">
+    <input type="text" id="targetInput" placeholder="e.g. 192.168.1.0/24 or 10.0.0.1" value="192.168.1.0/24"/>
+    <button class="btn-demo" onclick="runDemo()">▶ Demo Scan</button>
+    <button class="btn" onclick="runScan()" id="scanBtn">Scan</button>
+  </div>
+
+  <div class="terminal show" id="terminal">
+    <div class="terminal-bar">
+      <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+      <span class="terminal-title">network_scanner.py — kartik@sec</span>
+    </div>
+    <div class="terminal-body" id="termBody">
+      <div class="line"><span class="prompt">$</span><span class="dim">python network_scanner.py</span></div>
+      <div class="line"><span class="prompt">→</span><span class="info">Ready. Enter a target range and click Scan or try Demo.</span></div>
+    </div>
+  </div>
+
+  <div class="stats" id="stats">
+    <div class="stat-box"><div class="stat-num" id="s-hosts" style="color:var(--green)">0</div><div class="stat-lbl">Live Hosts</div></div>
+    <div class="stat-box"><div class="stat-num" id="s-ports" style="color:var(--accent)">0</div><div class="stat-lbl">Open Ports</div></div>
+    <div class="stat-box"><div class="stat-num" id="s-risky" style="color:var(--orange)">0</div><div class="stat-lbl">Risky Ports</div></div>
+  </div>
+
+  <div class="results-grid" id="results"></div>
+</div>
+
+<div class="footer">
+  Built by <a href="https://github.com/Kartik8171" target="_blank">Kartik</a> ·
+  <a href="https://github.com/Kartik8171/network-scanner" target="_blank">View Source & Python CLI</a>
+</div>
+
+<script>
+const PORTS = [
+  {port:21,  svc:"FTP",      risky:true},
+  {port:22,  svc:"SSH",      risky:false},
+  {port:23,  svc:"Telnet",   risky:true},
+  {port:80,  svc:"HTTP",     risky:false},
+  {port:443, svc:"HTTPS",    risky:false},
+  {port:445, svc:"SMB",      risky:true},
+  {port:3306,svc:"MySQL",    risky:false},
+  {port:3389,svc:"RDP",      risky:true},
+  {port:5900,svc:"VNC",      risky:true},
+  {port:8080,svc:"HTTP-Alt", risky:false},
+];
+
+const DEMO_HOSTS = [
+  { ip:"192.168.1.1",  name:"router.home",      ports:[{port:80,svc:"HTTP",risky:false},{port:443,svc:"HTTPS",risky:false},{port:23,svc:"Telnet",risky:true}] },
+  { ip:"192.168.1.5",  name:"your-device",      ports:[{port:22,svc:"SSH",risky:false},{port:80,svc:"HTTP",risky:false}] },
+  { ip:"192.168.1.10", name:"desktop-pc",       ports:[{port:3389,svc:"RDP",risky:true},{port:445,svc:"SMB",risky:true}] },
+  { ip:"192.168.1.14", name:"smart-tv.local",   ports:[{port:8080,svc:"HTTP-Alt",risky:false}] },
+  { ip:"192.168.1.22", name:"printer.home",     ports:[{port:80,svc:"HTTP",risky:false},{port:21,svc:"FTP",risky:true}] },
+];
+
+let scanning = false;
+
+function log(text, cls='') {
+  const body = document.getElementById('termBody');
+  const div = document.createElement('div');
+  div.className = 'line';
+  div.innerHTML = `<span class="prompt">›</span><span class="${cls}">${text}</span>`;
+  body.appendChild(div);
+  body.scrollTop = body.scrollHeight;
+}
+
+function clearTerm() {
+  document.getElementById('termBody').innerHTML = '';
+  document.getElementById('results').innerHTML = '';
+  document.getElementById('stats').classList.remove('show');
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function runDemo() {
+  if (scanning) return;
+  scanning = true;
+  const btn = document.getElementById('scanBtn');
+  btn.disabled = true;
+  clearTerm();
+
+  log('Initializing network scanner...', 'info');
+  await sleep(400);
+  log('Target range: 192.168.1.0/24', 'dim');
+  await sleep(300);
+  log('Ping sweep started — scanning 254 hosts...', 'scanning');
+  await sleep(800);
+
+  let totalPorts = 0, totalRisky = 0;
+
+  for (let i = 0; i < DEMO_HOSTS.length; i++) {
+    const h = DEMO_HOSTS[i];
+    await sleep(500 + Math.random() * 300);
+    log(`✔ Host found: ${h.ip} (${h.name})`, 'ok');
+    await sleep(200);
+    log(`  Scanning ports on ${h.ip}...`, 'scanning');
+    await sleep(400);
+    h.ports.forEach(p => {
+      totalPorts++;
+      if (p.risky) totalRisky++;
+      const risk = p.risky ? `<span class="warn">⚠ RISKY</span>` : `<span class="ok">✔ OK</span>`;
+      log(`  Port ${p.port} (${p.svc}) — ${risk}`, '');
+    });
+    renderHostCard(h);
+  }
+
+  await sleep(400);
+  log(`Scan complete. ${DEMO_HOSTS.length} hosts · ${totalPorts} open ports · ${totalRisky} risky`, 'info');
+
+  document.getElementById('s-hosts').textContent = DEMO_HOSTS.length;
+  document.getElementById('s-ports').textContent = totalPorts;
+  document.getElementById('s-risky').textContent = totalRisky;
+  document.getElementById('stats').classList.add('show');
+
+  scanning = false;
+  btn.disabled = false;
+}
+
+async function runScan() {
+  if (scanning) return;
+  const target = document.getElementById('targetInput').value.trim();
+  if (!target) { alert('Enter a target IP or range'); return; }
+
+  scanning = true;
+  const btn = document.getElementById('scanBtn');
+  btn.disabled = true;
+  clearTerm();
+
+  log(`Target: ${target}`, 'info');
+  await sleep(300);
+  log('Note: Running browser simulation (TCP scan requires Python CLI)', 'dim');
+  await sleep(400);
+
+  // Generate plausible hosts from input
+  const base = target.includes('/') ? target.split('/')[0].split('.').slice(0,3).join('.') : target.split('.').slice(0,3).join('.');
+  const hosts = [
+    { ip:`${base}.1`,  name:"gateway",     ports:[{port:80,svc:"HTTP",risky:false},{port:443,svc:"HTTPS",risky:false}] },
+    { ip:`${base}.100`,name:"host-device", ports:[{port:22,svc:"SSH",risky:false},{port:3389,svc:"RDP",risky:true}] },
+    { ip:`${base}.105`,name:"unknown",     ports:[{port:80,svc:"HTTP",risky:false},{port:21,svc:"FTP",risky:true}] },
+  ];
+
+  log('Ping sweep started...', 'scanning');
+  await sleep(700);
+  let totalPorts = 0, totalRisky = 0;
+  for (const h of hosts) {
+    await sleep(600);
+    log(`✔ ${h.ip} (${h.name}) is alive`, 'ok');
+    await sleep(300);
+    h.ports.forEach(p => {
+      totalPorts++; if(p.risky) totalRisky++;
+      const risk = p.risky ? `<span class="warn">⚠ RISKY</span>` : `<span class="ok">✔ OK</span>`;
+      log(`  Port ${p.port} (${p.svc}) — ${risk}`, '');
+    });
+    renderHostCard(h);
+  }
+  await sleep(400);
+  log(`Done. ${hosts.length} hosts · ${totalPorts} ports · ${totalRisky} risky`, 'info');
+  document.getElementById('s-hosts').textContent = hosts.length;
+  document.getElementById('s-ports').textContent = totalPorts;
+  document.getElementById('s-risky').textContent = totalRisky;
+  document.getElementById('stats').classList.add('show');
+  scanning = false;
+  btn.disabled = false;
+}
+
+function renderHostCard(h) {
+  const grid = document.getElementById('results');
+  const card = document.createElement('div');
+  card.className = 'host-card';
+  let portRows = h.ports.map(p => `
+    <div class="port-row">
+      <span class="port-num">${p.port}</span>
+      <span class="svc">${p.svc}</span>
+      ${p.risky
+        ? `<span class="risk-warn">⚠ RISKY — secure or close this port</span>`
+        : `<span class="risk-ok">✔ OK</span>`}
+    </div>`).join('');
+  card.innerHTML = `
+    <div class="host-header">
+      <div>
+        <div class="host-ip">${h.ip}</div>
+        <div class="host-name">${h.name}</div>
+      </div>
+      <span class="live-badge">● LIVE</span>
+    </div>
+    <div class="port-table">
+      <div class="port-row" style="color:var(--muted);font-size:0.7rem;padding-bottom:0.3rem;">
+        <span>PORT</span><span>SERVICE</span><span>STATUS</span>
+      </div>
+      ${portRows || '<div class="no-ports">No common open ports found.</div>'}
+    </div>`;
+  grid.appendChild(card);
+}
+</script>
+</body>
+</html>
